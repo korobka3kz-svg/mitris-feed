@@ -15,8 +15,7 @@ def col(r):
     return n-1
 z=zipfile.ZipFile(src); hdr=None
 base=['Корневая','Подкатегория 1','Подкатегория 2','Артикул','Название товара','Краткое описание','Полное описание','Изображения','Цена','Старая цена','Остаток']
-w=csv.writer(open(out,'w',encoding='utf-8-sig',newline=''),delimiter=';')
-w.writerow(base+['Параметр: '+p for p in KEEP_PARAMS])
+header=base+['Параметр: '+p for p in KEEP_PARAMS]; allrows=[]
 tot=kept=0
 for ev,el in ET.iterparse(z.open('xl/worksheets/sheet1.xml')):
     if el.tag!=ns+'row': continue
@@ -35,5 +34,11 @@ for ev,el in ET.iterparse(z.open('xl/worksheets/sheet1.xml')):
     if b not in KEEP_BRANDS: continue
     disc,rate=rates[b]
     price=round(num(g('Цена'))*rate); old=round(num(g('Параметр: Старая цена'))*rate) or ''
-    w.writerow([g(n) for n in base[:8]]+[price,old,int(num(g('Остаток')))]+[g('Параметр: '+p) for p in KEEP_PARAMS]); kept+=1
+    allrows.append([g(n) for n in base[:8]]+[price,old,int(num(g('Остаток')))]+[g('Параметр: '+p) for p in KEEP_PARAMS]); kept+=1
 print(tot,kept)
+
+used=[i for i in range(len(header)) if any(r[i] not in ('',None) for r in allrows)]
+w=csv.writer(open(out,'w',encoding='utf-8-sig',newline=''),delimiter=';')
+w.writerow([header[i] for i in used])
+for r in allrows: w.writerow([r[i] for i in used])
+print('dropped empty columns:',[header[i] for i in range(len(header)) if i not in used])
