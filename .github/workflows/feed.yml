@@ -1,0 +1,35 @@
+name: Build mitris feed
+on:
+  schedule:
+    - cron: "0 3 * * *"   # каждый день в 03:00 UTC (08:00 Астана)
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download supplier file and rates
+        run: |
+          curl -fsSL --retry 3 -o vamsvet.xlsx "https://s3.q-parser.ru/automata/63b772495aac5c/vamsvet.ru.xlsx"
+          curl -fsSL --retry 3 -o rates.csv "https://docs.google.com/spreadsheets/d/1KgDhiOq44kqC87NK17XbGOm6MwomNUmbamKlVtsZPXs/export?format=csv&gid=697343185"
+      - name: Convert
+        run: |
+          mkdir site
+          python3 convert.py vamsvet.xlsx rates.csv site/mitris_import.csv
+          test $(wc -l < site/mitris_import.csv) -gt 30000   # защита от пустого файла
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
