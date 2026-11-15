@@ -9,34 +9,25 @@ for r in csv.reader(open(rates_csv,encoding='utf8')):
     if len(r)>=3 and r[0] and r[0]!='Бренд':
         rates[r[0].strip().lower()]=(num(r[1]),num(r[2]))
 missing=KEEP_BRANDS-set(rates); assert not missing, missing
-def col(r):
-    n=0
-    for ch in ''.join(c for c in r if c.isalpha()): n=n*26+ord(ch)-64
-    return n-1
-z=zipfile.ZipFile(src); hdr=None
-base=['Корневая','Подкатегория 1','Подкатегория 2','Артикул','Название товара','Краткое описание','Полное описание','Изображения','Цена','Старая цена','Остаток']
+csv.field_size_limit(10**9)
+raw=open(src,'rb').read()
+try: text=raw.decode('utf-8-sig')
+except UnicodeDecodeError: text=raw.decode('cp1251')
+rd=csv.reader(io.StringIO(text,newline=''),delimiter=';'); hdr=next(rd)
+ix={n:i for i,n in enumerate(hdr)}
+base=['Корневая','Артикул','Название товара','Изображения','Цена','Старая цена','Остаток']
 header=base+['Параметр: '+p for p in KEEP_PARAMS]; allrows=[]
-tot=kept=0
-for ev,el in ET.iterparse(z.open('xl/worksheets/sheet1.xml')):
-    if el.tag!=ns+'row': continue
-    row={}
-    for c in el.findall(ns+'c'):
-        t=c.find(ns+'is')
-        if t is not None: v=''.join(x.text or '' for x in t.iter(ns+'t'))
-        else:
-            v=c.find(ns+'v'); v=v.text if v is not None else ''
-        row[col(c.get('r'))]=v
-    el.clear()
-    if hdr is None: hdr={v:k for k,v in row.items()}; continue
+tot=0
+for row in rd:
     tot+=1
-    g=lambda n: row.get(hdr[n],'').strip() if n in hdr else ''
-    b=g('Параметр: Бренд').lower()
+    g=lambda n: row[ix[n]].strip() if n in ix and ix[n]<len(row) else ''
+    b=g('Бренд').lower()
     if b not in KEEP_BRANDS: continue
     disc,rate=rates[b]
-    price=round(num(g('Цена'))*rate); old=round(num(g('Параметр: Старая цена'))*rate) or ''
-    allrows.append([g(n) for n in base[:8]]+[price,old,int(num(g('Остаток')))]+[g('Параметр: '+p) for p in KEEP_PARAMS]); kept+=1
-print(tot,kept)
-
+    price=round(num(g('Цена'))*rate); old=round(num(g('Старая цена'))*rate) or ''
+    imgs=' '.join(u for u in re.split(r'[;\s]+',g('Изображения')) if u)
+    allrows.append([g('Категория'),g('Артикул'),g('Название'),imgs,price,old,int(num(g('Остаток')))]+[g(p) for p in KEEP_PARAMS])
+print(tot,len(allrows))
 used=[i for i in range(len(header)) if any(r[i] not in ('',None) for r in allrows)]
 w=csv.writer(open(out,'w',encoding='utf-8-sig',newline=''),delimiter=';')
 w.writerow([header[i] for i in used])

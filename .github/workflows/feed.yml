@@ -20,12 +20,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download supplier file and rates
         run: |
-          curl -fsSL --connect-timeout 30 --max-time 900 --retry 5 --retry-all-errors -o vamsvet.xlsx "https://s3.q-parser.ru/automata/63b772495aac5c/vamsvet.ru.xlsx"
+          curl -fsSL --connect-timeout 30 --max-time 900 --retry 5 --retry-all-errors -o vamsvet.csv "https://s3.q-parser.ru/export/4029/191/4h268j2/4029191--vamsvet.ru.csv"
           curl -fsSL --retry 3 -o rates.csv "https://docs.google.com/spreadsheets/d/1KgDhiOq44kqC87NK17XbGOm6MwomNUmbamKlVtsZPXs/export?format=csv&gid=697343185"
       - name: Convert
         run: |
           mkdir site
-          python3 convert.py vamsvet.xlsx rates.csv site/mitris_import.csv
+          python3 convert.py vamsvet.csv rates.csv site/mitris_import.csv
           test $(wc -l < site/mitris_import.csv) -gt 30000   # защита от пустого файла
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
